@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Smart Water Tank X</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;600&display=swap" rel="stylesheet">
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase.js"></script>
+
+<style>
+* {margin:0;padding:0;box-sizing:border-box;font-family:'Poppins',sans-serif;}
+
+body {
+  background: radial-gradient(circle at top, #0f2027, #000);
+  color:white;
+  text-align:center;
+}
+
+header {
+  padding:20px;
+  font-size:28px;
+  color:#00f7ff;
+  text-shadow:0 0 15px #00f7ff;
+}
+
+/* Tank */
+.tank {
+  width:150px;
+  height:280px;
+  border:3px solid #00f7ff;
+  border-radius:20px;
+  overflow:hidden;
+  position:relative;
+  margin:auto;
+  box-shadow:0 0 20px #00f7ff;
+}
+
+.water {
+  position:absolute;
+  bottom:0;
+  width:100%;
+  background:linear-gradient(45deg,#00f7ff,#0066ff);
+  transition:height 0.5s;
+  overflow:hidden;
+}
+
+/* 🌊 Wave Animation */
+.water::before {
+  content:"";
+  position:absolute;
+  width:200%;
+  height:200%;
+  top:-50%;
+  left:-50%;
+  background:rgba(255,255,255,0.2);
+  border-radius:40%;
+  animation:wave 5s infinite linear;
+}
+
+@keyframes wave {
+  100% { transform: rotate(360deg); }
+}
+
+/* 🚨 Glow Alert */
+.alert-glow {
+  box-shadow: 0 0 40px red !important;
+}
+
+/* Cards */
+.card {
+  background:rgba(0,0,0,0.6);
+  padding:15px;
+  margin:10px;
+  border-radius:15px;
+  box-shadow:0 0 15px #00f7ff;
+}
+
+button {
+  padding:10px 20px;
+  margin:5px;
+  border:none;
+  border-radius:20px;
+  cursor:pointer;
+}
+
+.on {background:#00ffcc;}
+.off {background:#ff0055;color:white;}
+
+.popup {
+  position:fixed;
+  top:20px;
+  right:20px;
+  background:#111;
+  padding:10px;
+  display:none;
+}
+
+/* Graph */
+#graphBox {
+  width:300px;
+  margin:20px auto;
+  display:none;
+}
+</style>
+</head>
+
+<body>
+
+<header>💧 SMART WATER TANK X</header>
+
+<div id="popup" class="popup"></div>
+
+<!-- Tank -->
+<div class="tank">
+  <div class="water" id="water"></div>
+</div>
+
+<h2 id="levelText">Loading...</h2>
+
+<!-- Controls -->
+<div class="card">
+  <h3>Motor</h3>
+  <div id="motorStatus">Loading...</div>
+  <button class="on" onclick="turnOn()">ON</button>
+  <button class="off" onclick="turnOff()">OFF</button>
+</div>
+
+<div class="card">
+  <h3>Mode</h3>
+  <button onclick="setMode('AUTO')">AUTO</button>
+  <button onclick="setMode('MANUAL')">MANUAL</button>
+  <div id="modeStatus">Mode: MANUAL</div>
+</div>
+
+<div class="card">
+  <h3>Alerts</h3>
+  <div id="alertBox">Loading...</div>
+</div>
+
+<!-- Graph -->
+<button onclick="toggleGraph()">📊 Show / Hide Graph</button>
+
+<div id="graphBox">
+  <canvas id="chart"></canvas>
+</div>
+
+<!-- Audio -->
+<audio id="fullSound" src="https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg"></audio>
+<audio id="lowSound" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg"></audio>
+
+<script>
+// Firebase
+const firebaseConfig = {
+  apiKey: "AIzaSy...",
+  authDomain: "smart-water-tank-system-b26b8.firebaseapp.com",
+  databaseURL: "https://smart-water-tank-system-b26b8-default-rtdb.firebaseio.com/"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+// Graph
+let chartData = [];
+let labels = [];
+
+const chart = new Chart(document.getElementById("chart"), {
+  type:'line',
+  data:{
+    labels:labels,
+    datasets:[{
+      label:"Water %",
+      data:chartData,
+      borderColor:"#00f7ff",
+      backgroundColor:"rgba(0,247,255,0.2)",
+      fill:true,
+      tension:0.4
+    }]
+  }
+});
+
+function toggleGraph(){
+  let box=document.getElementById("graphBox");
+  box.style.display = (box.style.display==="none")?"block":"none";
+}
+
+let lastAlert="";
+
+// MAIN
+db.ref("/").on("value", snap=>{
+  let data=snap.val();
+  if(!data) return;
+
+  let level=parseInt(data.tank?.level)||0;
+  let motor=data.motor?.state||"OFF";
+  let mode=data.system?.mode||"MANUAL";
+
+  document.getElementById("levelText").innerText=level+"%";
+  document.getElementById("water").style.height=level+"%";
+  document.getElementById("motorStatus").innerText="Motor "+motor;
+  document.getElementById("modeStatus").innerText="Mode: "+mode;
+
+  let alertBox=document.getElementById("alertBox");
+  let tank=document.querySelector(".tank");
+
+  if(level>=90 && lastAlert!="FULL"){
+    fullSound.play();
+    showPopup("Tank Full!");
+    alertBox.innerText="Tank Full!";
+    tank.classList.add("alert-glow");
+    lastAlert="FULL";
+  }
+  else if(level<=20 && lastAlert!="LOW"){
+    lowSound.play();
+    showPopup("Water Low!");
+    alertBox.innerText="Water Low!";
+    tank.classList.add("alert-glow");
+    lastAlert="LOW";
+  }
+  else if(level>20 && level<90){
+    alertBox.innerText="Normal";
+    tank.classList.remove("alert-glow");
+    lastAlert="";
+  }
+
+  // Graph
+  let time=new Date().toLocaleTimeString();
+  labels.push(time);
+  chartData.push(level);
+
+  if(labels.length>10){
+    labels.shift();
+    chartData.shift();
+  }
+
+  chart.update();
+});
+
+// Auto + simulation
+setInterval(()=>{
+  db.ref("/").once("value").then(snap=>{
+    let d=snap.val();
+    if(!d) return;
+
+    let level=d.tank?.level||0;
+    let motor=d.motor?.state||"OFF";
+    let mode=d.system?.mode||"MANUAL";
+
+    if(mode==="AUTO"){
+      if(level<=20) motor="ON";
+      if(level>=90) motor="OFF";
+      db.ref("motor/state").set(motor);
+    }
+
+    level += (motor==="ON")?2:-1;
+    level=Math.max(0,Math.min(100,level));
+
+    db.ref("tank/level").set(level);
+  });
+},2000);
+
+// Controls
+function turnOn(){ db.ref("motor/state").set("ON"); }
+function turnOff(){ db.ref("motor/state").set("OFF"); }
+function setMode(m){ db.ref("system/mode").set(m); }
+
+// Popup
+function showPopup(msg){
+  let p=document.getElementById("popup");
+  p.innerText=msg;
+  p.style.display="block";
+  setTimeout(()=>p.style.display="none",3000);
+}
+</script>
+
+</body>
+</html>
