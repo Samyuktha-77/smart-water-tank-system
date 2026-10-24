@@ -1,278 +1,655 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Smart Water Tank X</title>
-
-<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;600&display=swap" rel="stylesheet">
-
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HydroGuard | Smart Water Tank</title>
 
 <style>
-* {margin:0;padding:0;box-sizing:border-box;font-family:'Poppins',sans-serif;}
-
-body {
-  background: radial-gradient(circle at top, #0f2027, #000);
-  color:white;
-  text-align:center;
+:root {
+    --blue:#1769e0; --dark-blue:#1047a3; --light-blue:#eaf3ff;
+    --bg:#f4f7fc; --white:#fff; --text:#172b4d; --muted:#718096;
+    --green:#159957; --red:#e5484d; --border:#e1e8f2;
 }
-
-header {
-  padding:20px;
-  font-size:28px;
-  color:#00f7ff;
-  text-shadow:0 0 15px #00f7ff;
+* { box-sizing:border-box; margin:0; padding:0; }
+body { font-family:Arial,Helvetica,sans-serif; background:var(--bg); color:var(--text); }
+button,input { font:inherit; }
+button { cursor:pointer; border:none; }
+.app { display:flex; min-height:100vh; }
+.sidebar { width:235px; background:#fff; border-right:1px solid var(--border); padding:25px 16px; flex-shrink:0; }
+.brand { display:flex; align-items:center; gap:10px; margin-bottom:35px; padding:0 8px; }
+.brand-icon { width:42px; height:42px; border-radius:12px; background:var(--blue); color:white; display:grid; place-items:center; font-size:24px; }
+.brand h2 { font-size:19px; }
+.brand p { font-size:11px; color:var(--muted); margin-top:3px; }
+.nav-label { color:#9aa7b8; font-size:11px; font-weight:bold; margin:22px 10px 10px; letter-spacing:1px; }
+.nav-item { padding:13px 12px; border-radius:9px; margin-bottom:5px; color:#66758b; font-size:14px; }
+.nav-item.active { background:var(--light-blue); color:var(--blue); font-weight:bold; }
+.nav-item span { margin-right:9px; }
+.sidebar-bottom { margin-top:45px; padding:15px; background:var(--light-blue); border-radius:12px; font-size:12px; line-height:1.7; }
+.main { flex:1; min-width:0; padding:28px; }
+.topbar { display:flex; justify-content:space-between; align-items:center; gap:15px; margin-bottom:28px; }
+.topbar h1 { font-size:26px; margin-bottom:7px; }
+.subtitle { font-size:13px; color:var(--muted); }
+.demo-label { display:inline-flex; align-items:center; gap:7px; padding:9px 13px; border-radius:20px; background:#fff3d6; color:#966500; font-size:12px; font-weight:bold; }
+.dot { height:8px; width:8px; border-radius:50%; background:#e5a000; }
+.metrics { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:16px; margin-bottom:22px; }
+.card { background:var(--white); border:1px solid var(--border); border-radius:15px; padding:20px; box-shadow:0 3px 12px rgba(30,60,100,.025); min-width:0; }
+.metric-top { display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; }
+.metric-name { color:var(--muted); font-size:12px; }
+.metric-icon { width:38px; height:38px; display:grid; place-items:center; border-radius:11px; background:var(--light-blue); font-size:20px; }
+.metric-value { font-size:29px; font-weight:bold; }
+.metric-note { color:var(--muted); font-size:11px; margin-top:8px; }
+.dashboard-grid { display:grid; grid-template-columns:minmax(0,1.15fr) minmax(0,.85fr); gap:20px; margin-bottom:20px; }
+.card-heading { display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:20px; }
+.card-heading h3 { font-size:16px; }
+.small-muted { color:var(--muted); font-size:12px; }
+.tank-area { display:flex; justify-content:center; align-items:center; gap:38px; padding:10px 0 20px; }
+.tank { width:145px; height:230px; border:5px solid #9eb8d7; border-top:8px solid #9eb8d7; border-radius:15px 15px 25px 25px; position:relative; overflow:hidden; background:#f3f8ff; }
+.water { position:absolute; bottom:0; width:100%; height:50%; background:linear-gradient(180deg,#66c7ff,#1875e8); transition:height .7s ease; }
+.water::before { content:""; position:absolute; top:-7px; left:-10%; width:120%; height:15px; border-radius:50%; background:#8bd7ff; }
+.tank-percent { position:absolute; inset:0; display:grid; place-items:center; font-size:29px; font-weight:bold; color:#fff; text-shadow:0 2px 5px #16569a; z-index:2; }
+.tank-info { min-width:110px; }
+.tank-info .big { font-size:25px; font-weight:bold; margin:8px 0; overflow-wrap:anywhere; }
+.status-pill { display:inline-block; padding:6px 10px; border-radius:20px; background:#e4f8ed; color:#137a45; font-size:11px; font-weight:bold; }
+.status-pill.warning { background:#fff0d9; color:#9b6200; }
+.status-pill.danger { background:#ffe5e5; color:#b42328; }
+.tank-scale { display:flex; justify-content:space-between; margin-top:10px; font-size:11px; color:var(--muted); }
+.motor-status { display:flex; justify-content:space-between; align-items:center; background:#f7faff; border:1px solid var(--border); padding:16px; border-radius:12px; margin-bottom:16px; }
+.motor-status strong { display:block; margin-bottom:5px; }
+.motor-indicator { width:12px; height:12px; display:inline-block; border-radius:50%; background:#9aa7b8; margin-right:5px; }
+.motor-indicator.on { background:var(--green); box-shadow:0 0 0 4px #d6f5e3; }
+.motor-buttons { display:flex; gap:10px; flex-wrap:wrap; }
+.btn { padding:11px 15px; border-radius:9px; font-size:12px; font-weight:bold; }
+.btn-primary { background:var(--blue); color:white; }
+.btn-primary:hover { background:var(--dark-blue); }
+.btn-danger { background:#ffeded; color:#bd3036; }
+.btn-secondary { background:#edf2f8; color:#34445a; }
+.btn:disabled { opacity:.5; cursor:not-allowed; }
+.runtime-box { background:var(--light-blue); border-radius:10px; padding:14px; margin-top:17px; }
+.runtime-box strong { font-size:21px; display:block; margin-top:7px; }
+.setting-row { margin-top:17px; }
+.setting-row label { display:block; font-size:12px; margin-bottom:8px; color:var(--muted); }
+.setting-row input { width:100%; padding:10px; border:1px solid var(--border); border-radius:8px; }
+.chart { width:100%; height:180px; display:block; overflow:visible; }
+.chart-legend { display:flex; align-items:center; gap:8px; color:var(--muted); font-size:12px; }
+.legend-dot { width:9px; height:9px; border-radius:50%; background:var(--blue); }
+.alert-list,.history-list { display:flex; flex-direction:column; gap:10px; }
+.alert-item,.history-item { display:flex; gap:12px; align-items:flex-start; padding:12px; border-radius:10px; background:#f8faff; min-width:0; }
+.alert-symbol { width:34px; height:34px; flex-shrink:0; display:grid; place-items:center; border-radius:10px; background:#fff0d9; }
+.alert-item strong,.history-item strong { display:block; font-size:12px; margin-bottom:5px; }
+.alert-item p,.history-item p { color:var(--muted); font-size:11px; line-height:1.5; }
+.alert-time { margin-left:auto; white-space:nowrap; color:var(--muted); font-size:10px; }
+.empty-state { color:var(--muted); font-size:12px; padding:15px 0; }
+.footer { text-align:center; color:var(--muted); font-size:11px; padding:10px; }
+@media(max-width:1100px) {
+    .metrics { grid-template-columns:repeat(2,minmax(0,1fr)); }
+    .dashboard-grid { grid-template-columns:1fr; }
 }
-
-/* Tank */
-.tank {
-  width:150px;
-  height:280px;
-  border:3px solid #00f7ff;
-  border-radius:20px;
-  overflow:hidden;
-  position:relative;
-  margin:auto;
-  box-shadow:0 0 20px #00f7ff;
-}
-
-.water {
-  position:absolute;
-  bottom:0;
-  width:100%;
-  background:linear-gradient(45deg,#00f7ff,#0066ff);
-  transition:height 0.5s;
-  overflow:hidden;
-}
-
-/* 🌊 Wave Animation */
-.water::before {
-  content:"";
-  position:absolute;
-  width:200%;
-  height:200%;
-  top:-50%;
-  left:-50%;
-  background:rgba(255,255,255,0.2);
-  border-radius:40%;
-  animation:wave 5s infinite linear;
-}
-
-@keyframes wave {
-  100% { transform: rotate(360deg); }
-}
-
-/* 🚨 Glow Alert */
-.alert-glow {
-  box-shadow: 0 0 40px red !important;
-}
-
-/* Cards */
-.card {
-  background:rgba(0,0,0,0.6);
-  padding:15px;
-  margin:10px;
-  border-radius:15px;
-  box-shadow:0 0 15px #00f7ff;
-}
-
-button {
-  padding:10px 20px;
-  margin:5px;
-  border:none;
-  border-radius:20px;
-  cursor:pointer;
-}
-
-.on {background:#00ffcc;}
-.off {background:#ff0055;color:white;}
-
-.popup {
-  position:fixed;
-  top:20px;
-  right:20px;
-  background:#111;
-  padding:10px;
-  display:none;
-}
-
-/* Graph */
-#graphBox {
-  width:300px;
-  margin:20px auto;
-  display:none;
+@media(max-width:720px) {
+    .app { display:block; }
+    .sidebar { width:100%; padding:15px; border-right:none; border-bottom:1px solid var(--border); }
+    .brand { margin-bottom:15px; }
+    .nav-label,.sidebar-bottom { display:none; }
+    .nav-list { display:flex; gap:6px; overflow-x:auto; }
+    .nav-item { white-space:nowrap; margin:0; padding:10px; }
+    .main { padding:17px; }
+    .topbar { align-items:flex-start; flex-direction:column; }
+    .topbar h1 { font-size:23px; }
+    .metrics { gap:10px; }
+    .card { padding:15px; }
+    .metric-value { font-size:23px; }
+    .metric-name { font-size:11px; }
+    .tank-area { gap:20px; }
+    .tank { width:120px; height:200px; }
 }
 </style>
 </head>
 
 <body>
+<div class="app">
+    <aside class="sidebar">
+        <div class="brand">
+            <div class="brand-icon">💧</div>
+            <div><h2>HydroGuard</h2><p>SMART WATER MANAGEMENT</p></div>
+        </div>
+        <p class="nav-label">MAIN MENU</p>
+        <div class="nav-list">
+            <div class="nav-item active"><span>▦</span>Dashboard</div>
+            <div class="nav-item"><span>◉</span>Tank Monitor</div>
+            <div class="nav-item"><span>⚙</span>Automation</div>
+            <div class="nav-item"><span>♧</span>Alerts</div>
+            <div class="nav-item"><span>◷</span>History</div>
+        </div>
+        <div class="sidebar-bottom">
+            <strong>💡 Demo Mode</strong>
+            <p>This dashboard uses simulated water readings. No physical sensor or motor is connected.</p>
+        </div>
+    </aside>
 
-<header>💧 SMART WATER TANK X</header>
+    <main class="main">
+        <header class="topbar">
+            <div>
+                <h1>Smart Tank Dashboard</h1>
+                <p class="subtitle">Monitor your water level and motor status in one place.</p>
+            </div>
+            <div class="demo-label"><span class="dot"></span>DEMO MODE ACTIVE</div>
+        </header>
 
-<div id="popup" class="popup"></div>
+        <section class="metrics">
+            <div class="card">
+                <div class="metric-top"><span class="metric-name">Water Level</span><span class="metric-icon">💧</span></div>
+                <div class="metric-value"><span id="levelMetric">50</span>%</div>
+                <p class="metric-note">Current simulated tank level</p>
+            </div>
+            <div class="card">
+                <div class="metric-top"><span class="metric-name">Water Available</span><span class="metric-icon">🪣</span></div>
+                <div class="metric-value"><span id="litresMetric">500</span> L</div>
+                <p class="metric-note">Based on tank capacity</p>
+            </div>
+            <div class="card">
+                <div class="metric-top"><span class="metric-name">Motor Runtime</span><span class="metric-icon">⚡</span></div>
+                <div class="metric-value" id="runtimeMetric">00:00</div>
+                <p class="metric-note">Current motor session</p>
+            </div>
+            <div class="card">
+                <div class="metric-top"><span class="metric-name">Active Alerts</span><span class="metric-icon">🔔</span></div>
+                <div class="metric-value" id="alertMetric">0</div>
+                <p class="metric-note">Recorded tank warnings</p>
+            </div>
+        </section>
 
-<!-- Tank -->
-<div class="tank">
-  <div class="water" id="water"></div>
+        <section class="dashboard-grid">
+            <div class="card">
+                <div class="card-heading">
+                    <h3>Tank Overview</h3>
+                    <div class="motor-buttons">
+                        <button class="btn btn-secondary" id="soundButton" onclick="enableSound()">🔔 Enable Sound</button>
+                        <button class="btn btn-primary" onclick="simulateReading()">+ Simulate Reading</button>
+                    </div>
+                </div>
+                <div class="tank-area">
+                    <div>
+                        <div class="tank">
+                            <div class="water" id="waterFill"></div>
+                            <div class="tank-percent" id="tankPercent">50%</div>
+                        </div>
+                        <div class="tank-scale"><span>0%</span><span>100%</span></div>
+                    </div>
+                    <div class="tank-info">
+                        <p class="small-muted">Tank name</p>
+                        <div class="big" id="tankNameDisplay">Main Tank</div>
+                        <p class="small-muted">Current status</p>
+                        <div style="margin-top:8px"><span class="status-pill" id="waterStatus">Normal</span></div>
+                        <p class="small-muted" style="margin-top:20px">Capacity</p>
+                        <div class="big"><span id="capacityDisplay">1000</span> L</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-heading"><h3>Motor Control</h3><span class="small-muted">Virtual motor</span></div>
+                <div class="motor-status">
+                    <div><strong>Water Pump</strong><p class="small-muted"><span class="motor-indicator" id="motorIndicator"></span><span id="motorState">Motor OFF</span></p></div>
+                    <span class="metric-icon">⚙️</span>
+                </div>
+                <div class="motor-buttons">
+                    <button class="btn btn-primary" id="motorOnButton" onclick="setMotor(true)">▶ Turn Motor ON</button>
+                    <button class="btn btn-danger" id="motorOffButton" onclick="setMotor(false)">■ Turn Motor OFF</button>
+                </div>
+                <div class="runtime-box"><p class="small-muted">Current session runtime</p><strong id="runtimeDetail">00:00:00</strong></div>
+                <div class="setting-row"><label for="simulationSpeed">Simulation speed (litres per reading)</label><input type="number" id="simulationSpeed" value="50" min="1" max="500"></div>
+            </div>
+        </section>
+
+        <section class="dashboard-grid">
+            <div class="card">
+                <div class="card-heading">
+                    <h3>Water Level History</h3>
+                    <div class="chart-legend"><span class="legend-dot"></span>Water level</div>
+                </div>
+                <svg class="chart" id="historyChart" viewBox="0 0 500 180" preserveAspectRatio="none" role="img" aria-label="Chart of simulated water levels">
+                    <line x1="35" y1="20" x2="490" y2="20" stroke="#e1e8f2"/>
+                    <line x1="35" y1="60" x2="490" y2="60" stroke="#e1e8f2"/>
+                    <line x1="35" y1="100" x2="490" y2="100" stroke="#e1e8f2"/>
+                    <line x1="35" y1="140" x2="490" y2="140" stroke="#e1e8f2"/>
+                    <text x="2" y="24" fill="#718096" font-size="10">100%</text>
+                    <text x="10" y="64" fill="#718096" font-size="10">75%</text>
+                    <text x="10" y="104" fill="#718096" font-size="10">50%</text>
+                    <text x="10" y="144" fill="#718096" font-size="10">25%</text>
+                    <polyline id="chartLine" points="" fill="none" stroke="#1769e0" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+                </svg>
+                <p class="small-muted" id="historySummary">Readings are generated by the demo simulator.</p>
+            </div>
+
+            <div class="card">
+                <div class="card-heading"><h3>Automation Settings</h3><span class="status-pill" id="automationBadge">Enabled</span></div>
+                <p class="small-muted">In demo mode, the virtual motor starts at the low-water threshold and stops at the high-water threshold.</p>
+                <div class="setting-row"><label for="tankName">Tank name</label><input id="tankName" type="text" value="Main Tank" maxlength="40"></div>
+                <div class="setting-row"><label for="capacity">Tank capacity (litres)</label><input id="capacity" type="number" value="1000" min="100" max="1000000"></div>
+                <div class="setting-row"><label for="lowThreshold">Low-water threshold (%)</label><input id="lowThreshold" type="number" value="20" min="0" max="98"></div>
+                <div class="setting-row"><label for="highThreshold">High-water threshold (%)</label><input id="highThreshold" type="number" value="90" min="2" max="100"></div>
+                <div class="setting-row">
+                    <button class="btn btn-primary" onclick="saveSettings()">Save Settings</button>
+                    <button class="btn btn-secondary" onclick="toggleAutomation()" id="automationButton">Disable Automation</button>
+                </div>
+            </div>
+        </section>
+
+        <section class="dashboard-grid">
+            <div class="card">
+                <div class="card-heading"><h3>Alerts & Notifications</h3><span class="small-muted" id="alertCountLabel">0 alerts</span></div>
+                <div class="alert-list" id="alertList"><p class="empty-state">No alerts yet. Your tank is being monitored in demo mode.</p></div>
+            </div>
+            <div class="card">
+                <div class="card-heading"><h3>Recent Activity</h3><button class="btn btn-secondary" onclick="clearHistory()">Clear</button></div>
+                <div class="history-list" id="activityList"><p class="empty-state">Your tank activity will appear here.</p></div>
+            </div>
+        </section>
+
+        <p class="footer">HydroGuard Smart Water Management System · Phase 1 Prototype · Demo Mode</p>
+    </main>
 </div>
-
-<h2 id="levelText">Loading...</h2>
-
-<!-- Controls -->
-<div class="card">
-  <h3>Motor</h3>
-  <div id="motorStatus">Loading...</div>
-  <button class="on" onclick="turnOn()">ON</button>
-  <button class="off" onclick="turnOff()">OFF</button>
-</div>
-
-<div class="card">
-  <h3>Mode</h3>
-  <button onclick="setMode('AUTO')">AUTO</button>
-  <button onclick="setMode('MANUAL')">MANUAL</button>
-  <div id="modeStatus">Mode: MANUAL</div>
-</div>
-
-<div class="card">
-  <h3>Alerts</h3>
-  <div id="alertBox">Loading...</div>
-</div>
-
-<!-- Graph -->
-<button onclick="toggleGraph()">📊 Show / Hide Graph</button>
-
-<div id="graphBox">
-  <canvas id="chart"></canvas>
-</div>
-
-<!-- Audio -->
-<audio id="fullSound" src="https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg"></audio>
-<audio id="lowSound" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg"></audio>
 
 <script>
-// Firebase
-const firebaseConfig = {
-  apiKey: "AIzaSy...",
-  authDomain: "smart-water-tank-system-b26b8.firebaseapp.com",
-  databaseURL: "https://smart-water-tank-system-b26b8-default-rtdb.firebaseio.com/"
+"use strict";
+
+// 1. Application state
+const state = {
+    level: 50,
+    capacity: 1000,
+    tankName: "Main Tank",
+    lowThreshold: 20,
+    highThreshold: 90,
+    motorOn: false,
+    automation: true,
+    runtimeSeconds: 0,
+    readings: [],
+    alerts: [],
+    activities: [],
+    lastAlert: "",
+    lastRecordedStatus: ""
 };
 
-firebase.initializeApp(firebaseConfig);
-const db = firebase.database();
+let motorStartedAt = null;
+let audioContext = null;
+let soundEnabled = false;
+let previousWaterCondition = "normal";
 
-// Graph
-let chartData = [];
-let labels = [];
+// 2. Sound alerts
+function asyncNoop() {}
 
-const chart = new Chart(document.getElementById("chart"), {
-  type:'line',
-  data:{
-    labels:labels,
-    datasets:[{
-      label:"Water %",
-      data:chartData,
-      borderColor:"#00f7ff",
-      backgroundColor:"rgba(0,247,255,0.2)",
-      fill:true,
-      tension:0.4
-    }]
-  }
-});
+function enableSound() {
+    const AudioClass = window.AudioContext || window.webkitAudioContext;
 
-function toggleGraph(){
-  let box=document.getElementById("graphBox");
-  box.style.display = (box.style.display==="none")?"block":"none";
-}
-
-let lastAlert="";
-
-// MAIN
-db.ref("/").on("value", snap=>{
-  let data=snap.val();
-  if(!data) return;
-
-  let level=parseInt(data.tank?.level)||0;
-  let motor=data.motor?.state||"OFF";
-  let mode=data.system?.mode||"MANUAL";
-
-  document.getElementById("levelText").innerText=level+"%";
-  document.getElementById("water").style.height=level+"%";
-  document.getElementById("motorStatus").innerText="Motor "+motor;
-  document.getElementById("modeStatus").innerText="Mode: "+mode;
-
-  let alertBox=document.getElementById("alertBox");
-  let tank=document.querySelector(".tank");
-
-  if(level>=90 && lastAlert!="FULL"){
-    fullSound.play();
-    showPopup("Tank Full!");
-    alertBox.innerText="Tank Full!";
-    tank.classList.add("alert-glow");
-    lastAlert="FULL";
-  }
-  else if(level<=20 && lastAlert!="LOW"){
-    lowSound.play();
-    showPopup("Water Low!");
-    alertBox.innerText="Water Low!";
-    tank.classList.add("alert-glow");
-    lastAlert="LOW";
-  }
-  else if(level>20 && level<90){
-    alertBox.innerText="Normal";
-    tank.classList.remove("alert-glow");
-    lastAlert="";
-  }
-
-  // Graph
-  let time=new Date().toLocaleTimeString();
-  labels.push(time);
-  chartData.push(level);
-
-  if(labels.length>10){
-    labels.shift();
-    chartData.shift();
-  }
-
-  chart.update();
-});
-
-// Auto + simulation
-setInterval(()=>{
-  db.ref("/").once("value").then(snap=>{
-    let d=snap.val();
-    if(!d) return;
-
-    let level=d.tank?.level||0;
-    let motor=d.motor?.state||"OFF";
-    let mode=d.system?.mode||"MANUAL";
-
-    if(mode==="AUTO"){
-      if(level<=20) motor="ON";
-      if(level>=90) motor="OFF";
-      db.ref("motor/state").set(motor);
+    if (!AudioClass) {
+        alert("Your browser does not support audio alerts. Please try an updated browser.");
+        return;
     }
 
-    level += (motor==="ON")?2:-1;
-    level=Math.max(0,Math.min(100,level));
+    try {
+        if (!audioContext) audioContext = new AudioClass();
 
-    db.ref("tank/level").set(level);
-  });
-},2000);
+        audioContext.resume().then(() => {
+            soundEnabled = true;
+            document.getElementById("soundButton").textContent = "🔔 Sound Enabled";
 
-// Controls
-function turnOn(){ db.ref("motor/state").set("ON"); }
-function turnOff(){ db.ref("motor/state").set("OFF"); }
-function setMode(m){ db.ref("system/mode").set(m); }
+            // If the tank is already in a warning range, play that warning now.
+            const condition = getWaterCondition();
+            if (condition === "low" || condition === "high") {
+                previousWaterCondition = "normal";
+                checkWaterStatus();
+            } else {
+                playAlarm("test");
+            }
 
-// Popup
-function showPopup(msg){
-  let p=document.getElementById("popup");
-  p.innerText=msg;
-  p.style.display="block";
-  setTimeout(()=>p.style.display="none",3000);
+            addActivity("Sound alerts enabled", "Browser sound alerts are enabled for this session.");
+        }).catch(error => {
+            console.error("Could not enable sound:", error);
+            alert("Sound could not be enabled. Check your browser or computer volume.");
+        });
+    } catch (error) {
+        console.error("Audio initialization error:", error);
+        alert("Unable to initialize sound in this browser.");
+    }
 }
-</script>
 
+function playAlarm(type) {
+    if (!soundEnabled || !audioContext) return;
+
+    if (audioContext.state === "suspended") {
+        audioContext.resume().catch(error => console.error("Audio resume failed:", error));
+    }
+
+    const isHigh = type === "high";
+    const frequency = isHigh ? 880 : 520;
+    const beepCount = type === "test" ? 1 : (isHigh ? 3 : 2);
+
+    for (let i = 0; i < beepCount; i++) {
+        const start = audioContext.currentTime + i * 0.34;
+        const oscillator = audioContext.createOscillator();
+        const gain = audioContext.createGain();
+
+        oscillator.type = "sine";
+        oscillator.frequency.setValueAtTime(frequency, start);
+        gain.gain.setValueAtTime(0.001, start);
+        gain.gain.linearRampToValueAtTime(0.22, start + 0.035);
+        gain.gain.setValueAtTime(0.22, start + 0.12);
+        gain.gain.linearRampToValueAtTime(0.001, start + 0.23);
+
+        oscillator.connect(gain);
+        gain.connect(audioContext.destination);
+        oscillator.start(start);
+        oscillator.stop(start + 0.24);
+    }
+}
+
+// 3. Utilities
+function nowTime() {
+    return new Date().toLocaleTimeString([], {
+        hour: "2-digit", minute: "2-digit", second: "2-digit"
+    });
+}
+
+function escapeHTML(value) {
+    return String(value).replace(/[&<>"']/g, char => ({
+        "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;"
+    })[char]);
+}
+
+function addActivity(title, description) {
+    state.activities.unshift({ title, description, time: nowTime() });
+    state.activities = state.activities.slice(0, 15);
+    renderActivities();
+}
+
+function addAlert(title, description, type = "warning") {
+    // Keep one entry for each continuous warning condition.
+    if (state.lastAlert === title) return;
+    state.lastAlert = title;
+
+    state.alerts.unshift({ title, description, time: nowTime(), type });
+    state.alerts = state.alerts.slice(0, 10);
+    renderAlerts();
+}
+
+// 4. Motor controls
+function setMotor(turnOn, automatic = false) {
+    if (turnOn && state.level >= 100) {
+        addAlert("Tank is full", "The motor cannot be started while the tank is full.", "danger");
+        return;
+    }
+
+    if (state.motorOn === turnOn) return;
+    state.motorOn = turnOn;
+
+    if (turnOn) {
+        motorStartedAt = Date.now();
+        addActivity(
+            automatic ? "Automatic motor started" : "Motor switched ON",
+            automatic ? "Low-water threshold reached." : "Motor started manually in demo mode."
+        );
+    } else {
+        if (motorStartedAt !== null) {
+            state.runtimeSeconds += Math.floor((Date.now() - motorStartedAt) / 1000);
+            motorStartedAt = null;
+        }
+        addActivity(
+            automatic ? "Automatic motor stopped" : "Motor switched OFF",
+            automatic ? "High-water threshold reached." : "Motor stopped manually in demo mode."
+        );
+    }
+    render();
+}
+
+function getRuntimeSeconds() {
+    let total = state.runtimeSeconds;
+    if (state.motorOn && motorStartedAt !== null) {
+        total += Math.floor((Date.now() - motorStartedAt) / 1000);
+    }
+    return total;
+}
+
+function formatRuntime(seconds, showHours = false) {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
+    const pad = number => String(number).padStart(2, "0");
+    if (showHours || hours > 0) return pad(hours) + ":" + pad(minutes) + ":" + pad(secs);
+    return pad(minutes) + ":" + pad(secs);
+}
+
+// 5. Simulated readings
+function recordReading() {
+    state.readings.push({ level: state.level, time: nowTime() });
+    state.readings = state.readings.slice(-20);
+    renderChart();
+}
+
+function simulateReading() {
+    const speedInput = document.getElementById("simulationSpeed");
+    const speed = Math.max(1, Math.min(500, Number(speedInput.value) || 50));
+
+    if (state.motorOn) {
+        state.level = Math.min(100, state.level + (speed / state.capacity) * 100);
+    } else {
+        state.level = Math.max(0, state.level - Math.random() * 2);
+    }
+
+    state.level = Math.round(state.level * 10) / 10;
+    recordReading();
+    checkWaterStatus();
+    checkAutomation();
+    render();
+
+    addActivity("Water reading updated", "Simulated water level: " + state.level + "%");
+}
+
+// 6. Water status and alerts
+function getWaterCondition() {
+    if (state.level <= state.lowThreshold) return "low";
+    if (state.level >= state.highThreshold) return "high";
+    return "normal";
+}
+
+function checkWaterStatus() {
+    const condition = getWaterCondition();
+
+    if (condition === "low") {
+        addAlert(
+            "Low water level",
+            "Water level is " + state.level + "%. Please refill the tank.",
+            "danger"
+        );
+    } else if (condition === "high") {
+        addAlert(
+            "High water level",
+            "Water level is " + state.level + "%. The tank is nearly full.",
+            "warning"
+        );
+    } else {
+        state.lastAlert = "";
+    }
+
+    // Sound only when entering a new warning condition.
+    if (condition !== previousWaterCondition) {
+        if (condition === "low") playAlarm("low");
+        if (condition === "high") playAlarm("high");
+    }
+
+    previousWaterCondition = condition;
+}
+
+// 7. Automation
+function checkAutomation() {
+    if (!state.automation) return;
+
+    if (state.level <= state.lowThreshold && !state.motorOn) {
+        setMotor(true, true);
+    } else if (state.level >= state.highThreshold && state.motorOn) {
+        setMotor(false, true);
+    }
+}
+
+// 8. Settings
+function saveSettings() {
+    const name = document.getElementById("tankName").value.trim();
+    const capacity = Number(document.getElementById("capacity").value);
+    const low = Number(document.getElementById("lowThreshold").value);
+    const high = Number(document.getElementById("highThreshold").value);
+
+    if (!name) {
+        alert("Please enter a tank name.");
+        return;
+    }
+    if (!Number.isFinite(capacity) || capacity < 100 || capacity > 1000000) {
+        alert("Capacity must be between 100 and 1,000,000 litres.");
+        return;
+    }
+    if (!Number.isFinite(low) || !Number.isFinite(high) ||
+        low < 0 || high > 100 || low >= high) {
+        alert("Enter valid thresholds. Low must be less than high.");
+        return;
+    }
+
+    state.tankName = name;
+    state.capacity = capacity;
+    state.lowThreshold = low;
+    state.highThreshold = high;
+
+    // Re-evaluate the condition immediately when thresholds change.
+    previousWaterCondition = "normal";
+    addActivity("Settings updated", "Tank configuration saved for this session.");
+    checkWaterStatus();
+    checkAutomation();
+    render();
+    alert("Settings saved for this demo session!");
+}
+
+function toggleAutomation() {
+    state.automation = !state.automation;
+    addActivity(
+        state.automation ? "Automation enabled" : "Automation disabled",
+        "Automatic motor control setting changed."
+    );
+    if (state.automation) checkAutomation();
+    render();
+}
+
+// 9. Render dashboard
+function render() {
+    const litres = Math.round(state.capacity * state.level / 100);
+
+    document.getElementById("levelMetric").textContent = Math.round(state.level);
+    document.getElementById("litresMetric").textContent = litres.toLocaleString();
+    document.getElementById("capacityDisplay").textContent = state.capacity.toLocaleString();
+    document.getElementById("tankNameDisplay").textContent = state.tankName;
+    document.getElementById("waterFill").style.height = state.level + "%";
+    document.getElementById("tankPercent").textContent = Math.round(state.level) + "%";
+
+    const waterStatus = document.getElementById("waterStatus");
+    if (state.level <= state.lowThreshold) {
+        waterStatus.textContent = "Low Water";
+        waterStatus.className = "status-pill danger";
+    } else if (state.level >= state.highThreshold) {
+        waterStatus.textContent = "Nearly Full";
+        waterStatus.className = "status-pill warning";
+    } else {
+        waterStatus.textContent = "Normal";
+        waterStatus.className = "status-pill";
+    }
+
+    document.getElementById("motorState").textContent = state.motorOn ? "Motor ON" : "Motor OFF";
+    document.getElementById("motorIndicator").className =
+        state.motorOn ? "motor-indicator on" : "motor-indicator";
+    document.getElementById("runtimeMetric").textContent = formatRuntime(getRuntimeSeconds());
+    document.getElementById("runtimeDetail").textContent = formatRuntime(getRuntimeSeconds(), true);
+    document.getElementById("motorOnButton").disabled = state.motorOn || state.level >= 100;
+    document.getElementById("motorOffButton").disabled = !state.motorOn;
+    document.getElementById("automationBadge").textContent = state.automation ? "Enabled" : "Disabled";
+    document.getElementById("automationButton").textContent =
+        state.automation ? "Disable Automation" : "Enable Automation";
+    document.getElementById("alertMetric").textContent = state.alerts.length;
+    document.getElementById("alertCountLabel").textContent = state.alerts.length + " alerts";
+}
+
+// 10. Chart
+function renderChart() {
+    const values = state.readings;
+    if (!values.length) return;
+
+    const points = values.map((reading, index) => {
+        const x = 35 + (index / Math.max(1, values.length - 1)) * 455;
+        const y = 140 - (reading.level / 100) * 120;
+        return x.toFixed(1) + "," + y.toFixed(1);
+    });
+
+    document.getElementById("chartLine").setAttribute("points", points.join(" "));
+    document.getElementById("historySummary").textContent =
+        values.length + " simulated readings recorded in this session.";
+}
+
+// 11. Alert and activity lists
+function renderAlerts() {
+    const list = document.getElementById("alertList");
+    if (!state.alerts.length) {
+        list.innerHTML = '<p class="empty-state">No alerts yet. Your tank is being monitored in demo mode.</p>';
+        return;
+    }
+
+    list.innerHTML = state.alerts.map(item => `
+        <div class="alert-item">
+            <div class="alert-symbol">${item.type === "danger" ? "🚨" : "⚠️"}</div>
+            <div>
+                <strong>${escapeHTML(item.title)}</strong>
+                <p>${escapeHTML(item.description)}</p>
+            </div>
+            <span class="alert-time">${escapeHTML(item.time)}</span>
+        </div>
+    `).join("");
+}
+
+function renderActivities() {
+    const list = document.getElementById("activityList");
+    if (!state.activities.length) {
+        list.innerHTML = '<p class="empty-state">Your tank activity will appear here.</p>';
+        return;
+    }
+
+    list.innerHTML = state.activities.map(item => `
+        <div class="history-item">
+            <div class="alert-symbol">📋</div>
+            <div>
+                <strong>${escapeHTML(item.title)}</strong>
+                <p>${escapeHTML(item.description)}</p>
+            </div>
+            <span class="alert-time">${escapeHTML(item.time)}</span>
+        </div>
+    `).join("");
+}
+
+function clearHistory() {
+    state.activities = [];
+    renderActivities();
+    addActivity("Activity history cleared", "A new activity log has started.");
+}
+
+// 12. Start dashboard
+function initializeDashboard() {
+    recordReading();
+    addActivity("Dashboard started", "Smart tank demo initialized successfully.");
+    checkWaterStatus();
+    render();
+}
+
+initializeDashboard();
+
+setInterval(() => {
+    document.getElementById("runtimeMetric").textContent = formatRuntime(getRuntimeSeconds());
+    document.getElementById("runtimeDetail").textContent = formatRuntime(getRuntimeSeconds(), true);
+}, 1000);
+
+setInterval(simulateReading, 12000);
+</script>
 </body>
 </html>
